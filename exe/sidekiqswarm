@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Sidekiq Enterprise's multi-process command (see Sidekiq::CLI#swarm).
+require "sidekiq/cli"
+Sidekiq::CLI.instance.swarm(ARGV)

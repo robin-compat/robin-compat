@@ -1,0 +1,13 @@
+# Bundler, builds and packages
+/.bundle/
+pkg/
+tmp/
+*.gem
+
+# Test, coverage and mutation testing output
+coverage/
+.mutant/
+
+# Local tools and OS files
+/.claude/
+.DS_Store

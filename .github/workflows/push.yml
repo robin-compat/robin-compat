@@ -1,0 +1,53 @@
+name: Push the gem to RubyGems
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    if: github.repository == 'robin-compat/robin-compat'
+    runs-on: ubuntu-latest
+    environment:
+      name: rubygems.org
+      url: https://rubygems.org/gems/robin-compat
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ruby
+      - uses: rubygems/configure-rubygems-credentials@v2.1.0
+      - name: Update RubyGems
+        run: gem update --system
+      - name: Build the gem
+        run: gem build robin-compat.gemspec
+      - name: Sign the gem with Sigstore
+        run: |
+          for gem in robin-compat-*.gem; do
+            gem exec sigstore-cli sign "$gem" --bundle "${gem%.gem}.gem.sigstore.json"
+          done
+      - name: Push the gem
+        run: |
+          for gem in robin-compat-*.gem; do
+            gem push "$gem" --attestation "${gem%.gem}.gem.sigstore.json" || {
+              echo "gem push failed — checking if already published"
+              gem exec rubygems-await "$gem" && echo "Already published, continuing" || exit 1
+            }
+          done
+      - name: Wait for release
+        run: gem exec rubygems-await robin-compat-*.gem
+      - name: Create GitHub release
+        run: |
+          tag_name="$(git describe --tags --abbrev=0)"
+          gh release view "${tag_name}" >/dev/null 2>&1 || \
+            gh release create "${tag_name}" --verify-tag --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

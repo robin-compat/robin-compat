@@ -1,0 +1,38 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Robin isn't released yet: each job checks it out next to this
+# repository, where the Gemfile looks for it (../robin).
+defaults:
+  run:
+    working-directory: robin-compat
+
+jobs:
+  ruby:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: robin-compat
+      - uses: actions/checkout@v4
+        with:
+          repository: sferik/robin
+          path: robin
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: robin-compat
+          ruby-version: "3.4"
+          bundler-cache: true
+      - name: RuboCop
+        run: bundle exec rubocop
+      - name: Standard
+        run: bundle exec standardrb
+      - name: Build the gem
+        run: gem build robin-compat.gemspec
