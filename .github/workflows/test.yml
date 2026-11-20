@@ -25,10 +25,10 @@ jobs:
       matrix:
         ruby: ["3.4", "4.0", "head", "jruby-10.1", "truffleruby-40.0"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: robin-compat
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: sferik/robin
           path: robin
@@ -54,10 +54,10 @@ jobs:
     name: Sidekiq interop
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: robin-compat
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: sferik/robin
           path: robin
@@ -80,10 +80,10 @@ jobs:
     env:
       COVERAGE_STRICT: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: robin-compat
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: sferik/robin
           path: robin
