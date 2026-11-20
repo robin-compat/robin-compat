@@ -1,0 +1,7 @@
+# frozen_string_literal: true
+
+# The real Sidekiq, for the interop tests (test/interop_test.rb): they run
+# it in a separate process against the same Redis as Robin.
+source "https://rubygems.org"
+
+gem "sidekiq", "~> 8.1"

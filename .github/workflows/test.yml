@@ -1,0 +1,105 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Robin isn't released yet: each job checks it out next to this
+# repository, where the Gemfile looks for it (../robin).
+defaults:
+  run:
+    working-directory: robin-compat
+
+jobs:
+  test:
+    name: ${{ matrix.ruby }}
+    runs-on: ubuntu-latest
+    # Ruby's development version and TruffleRuby get an early look, but
+    # can't fail the build.
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.4", "4.0", "head", "jruby-10.1", "truffleruby-40.0"]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: robin-compat
+      - uses: actions/checkout@v7
+        with:
+          repository: sferik/robin
+          path: robin
+      - uses: ./robin-compat/.github/actions/redis
+      - id: ruby
+        uses: ruby/setup-ruby@v1
+        continue-on-error: ${{ matrix.ruby == 'head' || startsWith(matrix.ruby, 'truffleruby') }}
+        with:
+          working-directory: robin-compat
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+      - id: tests
+        name: Run tests
+        continue-on-error: ${{ matrix.ruby == 'head' || startsWith(matrix.ruby, 'truffleruby') }}
+        run: bundle exec rake test
+      - name: Note an advisory failure
+        if: steps.ruby.outcome == 'failure' || steps.tests.outcome == 'failure'
+        run: echo "::warning title=Advisory failure::A step failed, but this job is allowed to fail, so the build still passes"
+
+  # Against the real Sidekiq: each runs, reads and acts on what the other
+  # wrote, in a Redis database of their own.
+  interop:
+    name: Sidekiq interop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: robin-compat
+      - uses: actions/checkout@v7
+        with:
+          repository: sferik/robin
+          path: robin
+      - uses: ./robin-compat/.github/actions/redis
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: robin-compat
+          ruby-version: "3.4"
+          bundler-cache: true
+      - name: Install the real Sidekiq
+        run: BUNDLE_GEMFILE=test/interop/Gemfile bundle install
+      # No coverage: these few tests cover a fraction of lib/, and CI
+      # would hold them to the coverage job's 100%.
+      - name: Run the interop tests
+        env:
+          COVERAGE: "false"
+          ROBIN_INTEROP_REDIS_URL: unix:///tmp/redis/redis.sock?db=10
+        run: bundle exec ruby -Itest -Ilib test/interop_test.rb
+
+  coverage:
+    name: Coverage (100% line, branch and method)
+    runs-on: ubuntu-latest
+    env:
+      COVERAGE_STRICT: "1"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: robin-compat
+      - uses: actions/checkout@v7
+        with:
+          repository: sferik/robin
+          path: robin
+      - uses: ./robin-compat/.github/actions/redis
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: robin-compat
+          ruby-version: "3.4"
+          bundler-cache: true
+      # SimpleCov fails the run if any criterion drops below 100%.
+      - run: bundle exec rake test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage
+          path: robin-compat/coverage/

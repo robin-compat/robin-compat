@@ -1,0 +1,41 @@
+name: Mutant
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# Robin isn't released yet: each job checks it out next to this
+# repository, where the Gemfile looks for it (../robin).
+defaults:
+  run:
+    working-directory: robin-compat
+
+jobs:
+  mutant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: robin-compat
+          fetch-depth: 0
+      - uses: actions/checkout@v7
+        with:
+          repository: sferik/robin
+          path: robin
+      - uses: ./robin-compat/.github/actions/redis
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: robin-compat
+          ruby-version: "3.4"
+          bundler-cache: true
+      # Pull requests only mutate code they touch; pushes to main run everything.
+      - name: Mutant (changed subjects)
+        if: github.event_name == 'pull_request'
+        run: bundle exec mutant run --since origin/${{ github.base_ref }}
+      - name: Mutant (all subjects)
+        if: github.event_name != 'pull_request'
+        run: bundle exec mutant run
