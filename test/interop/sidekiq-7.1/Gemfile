@@ -1,0 +1,17 @@
+# frozen_string_literal: true
+
+# The real Sidekiq 7.1, for the interop tests against it
+# (ROBIN_INTEROP_GEMFILE=test/interop/sidekiq-7.1/Gemfile).
+source "https://rubygems.org"
+
+gem "sidekiq", "~> 7.1.0"
+
+# The real sidekiq-cron, for the cron interop test.
+gem "sidekiq-cron", "~> 2.4"
+
+# The real sidekiq-scheduler, for the scheduler interop test.
+gem "sidekiq-scheduler", "~> 5.0"
+
+# Sidekiq 7 allows connection_pool 3, but its scheduler calls the timed
+# pop that 3.0 changed, so apps on Sidekiq 7 run 2.x.
+gem "connection_pool", "< 3"

@@ -1,0 +1,16 @@
+usage: opensource
+integration:
+  name: minitest
+includes:
+  - lib
+  - test
+requires:
+  - mutant_env
+matcher:
+  subjects:
+    - Sidekiq*
+    - SidekiqScheduler*
+    - Robin::Compat*
+    - ActiveJob::QueueAdapters::SidekiqAdapter*
+mutation:
+  timeout: 20.0
