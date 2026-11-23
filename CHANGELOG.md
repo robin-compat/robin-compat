@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Sidekiq::Client.reliable_push!` and `Sidekiq::Batch` were undefined
   in an initializer unless it required `sidekiq-pro`.
 
+### Changed
+
+- The README warns about gems that depend on the sidekiq gem, which bring
+  the real Sidekiq back into the bundle.
+
 ## [0.1.2] - 2026-11-22
 
 The first release, alongside Robin 0.1.2. See README.md.

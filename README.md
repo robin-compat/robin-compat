@@ -60,6 +60,17 @@ Redis where they are. If your schedules use natural language ("every day
 at five", or durations like "2 hours and 30 minutes"), add the fugit gem
 to your Gemfile, which both brought in.
 
+Other gems that depend on the sidekiq gem bring it back:
+sentry-sidekiq, rspec-sidekiq, sidekiq-unique-jobs, sidekiq-throttled,
+sidekiq-failures, sidekiq-status, sidekiq_alive, yabeda-sidekiq and
+judoscale-sidekiq, among others. Bundler then installs the real Sidekiq
+next to robin-compat, and whichever comes first on the load path is the
+Sidekiq your app gets (usually the real one, so it fails to boot or runs
+on Sidekiq without saying so). Remove those gems before you switch (Robin
+has unique jobs, rate limiters, job progress and a health check built in),
+and check that `Gemfile.lock` lists no
+`sidekiq` gem after `bundle install`.
+
 Then `bundle install`. That's the only change to your app. Everything else
 keeps working as written:
 
