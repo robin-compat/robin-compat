@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "test_helper"
+require "open3"
+require "rbconfig"
 
 class SidekiqModuleTest < RobinCompatTest
   cover "Sidekiq."
@@ -98,6 +100,17 @@ class SidekiqModuleTest < RobinCompatTest
     assert_equal ["robin/rails/transactional_push"], paths
 
     assert_same Robin::Rails::TransactionalPush, config.push_deferrer
+  end
+
+  # Bundler.require loads robin-compat.rb, as it loaded sidekiq-pro and
+  # sidekiq-ent when they were in the Gemfile: their interfaces are there
+  # without requiring them.
+  def test_requiring_robin_compat_loads_pro_and_enterprise
+    code = 'require "robin-compat"; print [Sidekiq::Client.respond_to?(:reliable_push!), defined?(Sidekiq::Batch), defined?(Sidekiq::Limiter), defined?(Sidekiq::Periodic)].inspect'
+    out, status = Open3.capture2e(RbConfig.ruby, "-I", File.expand_path("../lib", __dir__), "-e", code)
+
+    assert_predicate status, :success?, out
+    assert_equal '[true, "constant", "constant", "constant"]', out
   end
 
   def test_rails_integration_loads_with_rails

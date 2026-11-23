@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bundle exec sidekiq` boots a Rails app with Active Job's `:sidekiq`
   adapter. It loaded Rails's own adapter instead, which failed with
   "sidekiq is not part of the bundle".
+- `gem "robin-compat"` loads Pro's and Enterprise's interfaces, as Bundler
+  loaded sidekiq-pro and sidekiq-ent when they were in the Gemfile.
+  `Sidekiq::Client.reliable_push!` and `Sidekiq::Batch` were undefined
+  in an initializer unless it required `sidekiq-pro`.
 
 ## [0.1.2] - 2026-11-22
 
