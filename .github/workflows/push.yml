@@ -65,8 +65,23 @@ jobs:
               curl --silent --fail --output /dev/null "$(ruby -rrubygems/package -e 'spec = Gem::Package.new(ARGV[0]).spec; print "https://rubygems.org/api/v2/rubygems/#{spec.name}/versions/#{spec.version}.json?platform=#{spec.platform}"' "$gem")" && echo "Already published, continuing" || exit 1
             }
           done
+      # Waits (up to 10 minutes) for each gem to be in RubyGems.org's
+      # compact index, where Bundler finds it, as "<version>[-<platform>] ".
+      # (rubygems-await 0.5.4 crashes on RubyGems 4.1.)
       - name: Wait for release
-        run: gem exec rubygems-await robin-compat-*.gem
+        run: |
+          for gem in robin-compat-*.gem; do
+            read -r name entry < <(ruby -rrubygems/package -e 'spec = Gem::Package.new(ARGV[0]).spec; print spec.name, " ", spec.version, (spec.platform == "ruby" ? "" : "-#{spec.platform}")' "$gem")
+            for attempt in $(seq 60); do
+              curl --silent --fail "https://index.rubygems.org/info/${name}" | grep -q "^${entry//./\\.} " && break
+              if [ "$attempt" -eq 60 ]; then
+                echo "${entry} of ${name} isn't in RubyGems.org's index after 10 minutes"
+                exit 1
+              fi
+              sleep 10
+            done
+            echo "${name} ${entry} is on RubyGems.org"
+          done
       - name: Create GitHub release
         run: |
           tag_name="$(git describe --tags --abbrev=0)"
