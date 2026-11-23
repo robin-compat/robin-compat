@@ -259,6 +259,23 @@ class ApiTest < RobinCompatTest
     assert_equal [3.0], result.map(&:score)
   end
 
+  # A member a scan returns more than once (as Redis 8.12's B+ tree sorted
+  # sets can) is yielded once, where it was first found.
+  def test_scan_yields_a_member_returned_twice_once
+    a, b, c = %w[a b c].map { |jid| JSON.generate(job("dup-#{jid}")) }
+    replies = [["7", [b, "2", a, "1"]], ["0", [b, "2", c, "3"]]]
+    calls = []
+    connection = Object.new
+    connection.define_singleton_method(:call) { |*args| (calls << args) && replies.shift }
+    robin = Robin::Config.new
+    robin.define_singleton_method(:redis) { |&block| block.call(connection) }
+    yielded = []
+    Sidekiq::RetrySet.new(config: robin).scan("dup-") { |entry| yielded << entry.jid }
+
+    assert_equal %w[dup-b dup-a dup-c], yielded
+    assert_equal [["ZSCAN", robin.key("retry"), "0", "MATCH", "*dup-*", "COUNT", 100], ["ZSCAN", robin.key("retry"), "7", "MATCH", "*dup-*", "COUNT", 100]], calls
+  end
+
   def test_scan_pages_through_large_sets
     300.times { |n| add("retry", n, job("j#{n}")) }
 

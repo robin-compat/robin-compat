@@ -141,19 +141,21 @@ module Sidekiq
     end
 
     # Entries whose JSON matches +match+ (a glob: "*" is added on both
-    # sides unless it has one), yielded or returned.
+    # sides unless it has one), yielded or returned. Each once, though a
+    # scan may return one more than once (Redis 8.12's B+ tree sorted sets
+    # do): Sidekiq would yield it again.
     def scan(match, count = SCAN_COUNT, &block)
       pattern = match.include?("*") ? match : "*#{match}*"
-      found = []
+      found = {}
       cursor = "0"
       @config.redis do |c|
         loop do
           cursor, pairs = c.call("ZSCAN", key, cursor, "MATCH", pattern, "COUNT", count)
-          pairs.each_slice(2) { |value, score| found << entry(score, value) }
+          pairs.each_slice(2) { |value, score| found[value] = entry(score, value) }
           break if cursor == "0"
         end
       end
-      block ? found.each(&block) : found
+      block ? found.values.each(&block) : found.values
     end
 
     # Entries with exactly this score (a Time, epoch seconds or a Range of
