@@ -48,6 +48,20 @@ module Sidekiq
       run(["swarm", *(["-n", count] if count), *argv], env:)
     end
 
+    # The command's first app loader (see Robin::CLI.app_loaders): before
+    # a Rails app in +dir+ boots, loads Rails and Sidekiq::Rails, as
+    # Sidekiq's own command does. The command loads sidekiq before Rails,
+    # so Sidekiq::Rails wasn't loaded with it, and without it Active Job's
+    # :sidekiq adapter would be Rails's own, which needs the sidekiq gem.
+    # Booting the app is left to the next loader (Robin's).
+    def self.load_rails(dir)
+      return unless File.exist?(File.join(dir, "config", "application.rb"))
+
+      require "rails"
+      require "sidekiq/rails"
+      nil
+    end
+
     # Applies the config file's other settings (see SERVER_SETTINGS), and
     # its verbose setting. Null values leave defaults alone. Hashes are
     # environment sections or capsules, except :scheduler:
@@ -66,5 +80,6 @@ module Sidekiq
   end
 end
 
+Robin::CLI.app_loaders.unshift(Sidekiq::CLI.method(:load_rails))
 Robin::CLI.config_paths.unshift("config/sidekiq.yml", "config/sidekiq.yml.erb")
 Robin::CLI.config_file_hooks << ->(options, config) { Sidekiq::CLI.apply_settings(options, config) }

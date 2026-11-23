@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `bundle exec sidekiq` boots a Rails app with Active Job's `:sidekiq`
+  adapter. It loaded Rails's own adapter instead, which failed with
+  "sidekiq is not part of the bundle".
+
 ## [0.1.2] - 2026-11-22
 
 The first release, alongside Robin 0.1.2. See README.md.

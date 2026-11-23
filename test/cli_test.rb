@@ -3,6 +3,8 @@
 require_relative "test_helper"
 require "sidekiq/cli"
 require "tmpdir"
+require "open3"
+require "rbconfig"
 
 class CLITest < RobinCompatTest
   cover "Sidekiq::CLI*"
@@ -233,5 +235,66 @@ class CLITest < RobinCompatTest
     assert_equal [["swarm", *ARGV]], @runs
     assert_nil config.memory_limit_mb
     assert_equal "development", env["RACK_ENV"]
+  end
+
+  def test_rails_is_loaded_before_robin_boots_the_app
+    loader = Robin::CLI.app_loaders.first
+
+    assert_equal [Sidekiq::CLI, :load_rails], [loader.receiver, loader.name]
+    assert_includes Robin::CLI.app_loaders, Robin::Rails::AppLoader
+  end
+
+  def test_load_rails_loads_sidekiq_rails_and_leaves_the_boot_to_robin
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "config"))
+      File.write(File.join(dir, "config", "application.rb"), "")
+      paths = recording_requires(Sidekiq::CLI) { assert_nil Sidekiq::CLI.load_rails(dir) }
+
+      assert_equal %w[rails sidekiq/rails], paths
+    end
+  end
+
+  def test_load_rails_skips_other_directories
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "config"))
+      File.write(File.join(dir, "config", "sidekiq.yml"), "")
+      paths = recording_requires(Sidekiq::CLI) { assert_nil Sidekiq::CLI.load_rails(dir) }
+
+      assert_empty paths
+    end
+  end
+
+  # The command loads sidekiq before Rails. A Rails app it boots still
+  # gets robin-compat's :sidekiq adapter, not Rails's own (whose file
+  # needs the sidekiq gem, which isn't in the bundle).
+  def test_a_rails_app_it_boots_gets_the_sidekiq_adapter
+    Dir.mktmpdir do |dir|
+      FileUtils.mkdir_p(File.join(dir, "config"))
+      File.write(File.join(dir, "config", "application.rb"), <<~RUBY)
+        require "rails"
+        require "active_job/railtie"
+        require "sidekiq"
+
+        class CLITestApp < Rails::Application
+          config.root = File.expand_path("..", __dir__)
+          config.eager_load = false
+          config.logger = Logger.new(nil)
+          config.active_job.queue_adapter = :sidekiq
+        end
+      RUBY
+      File.write(File.join(dir, "config", "environment.rb"), <<~RUBY)
+        require_relative "application"
+        Rails.application.initialize!
+      RUBY
+      code = <<~RUBY
+        require "sidekiq/cli"
+        Robin::CLI.new([]).send(:load_directory, #{dir.dump})
+        print ActiveJob::Base.queue_adapter.class.ancestors.include?(ActiveJob::QueueAdapters::RobinAdapter)
+      RUBY
+      out, status = Open3.capture2e(RbConfig.ruby, "-rbundler/setup", "-I", File.expand_path("../lib", __dir__), "-e", code)
+
+      assert_predicate status, :success?, out
+      assert_equal "true", out
+    end
   end
 end
