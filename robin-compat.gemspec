@@ -29,5 +29,5 @@ Gem::Specification.new do |spec|
   spec.executables = %w[sidekiq sidekiqswarm]
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "robin", Robin::Compat::VERSION
+  spec.add_dependency "robin", *Robin::Compat::ROBIN_REQUIREMENT
 end

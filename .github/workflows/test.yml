@@ -42,6 +42,28 @@ jobs:
         if: steps.ruby.outcome == 'failure' || steps.tests.outcome == 'failure'
         run: echo "::warning title=Advisory failure::A step failed, but this job is allowed to fail, so the build still passes"
 
+  # The lowest robin the gemspec allows (Robin::Compat::ROBIN_REQUIREMENT).
+  # The test job above gets the newest, as there's no lockfile.
+  lowest-robin:
+    name: Lowest robin allowed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: robin-compat
+      - uses: ./robin-compat/.github/actions/redis
+      - uses: ruby/setup-ruby@v1
+        with:
+          working-directory: robin-compat
+          ruby-version: "3.4"
+      - name: Pin the lowest robin allowed
+        run: |
+          version=$(ruby -Ilib -rrobin/compat/version -e 'print Gem::Requirement.new(*Robin::Compat::ROBIN_REQUIREMENT).requirements.find { |op, _| op == ">=" }.last')
+          echo "Testing with robin $version"
+          echo "ROBIN_VERSION=$version" >> "$GITHUB_ENV"
+      - run: bundle install
+      - run: bundle exec rake test
+
   # Against the real Sidekiq: each runs, reads and acts on what the other
   # wrote, in a Redis database of their own.
   interop:

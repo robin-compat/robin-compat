@@ -102,6 +102,15 @@ class SidekiqModuleTest < RobinCompatTest
     assert_same Robin::Rails::TransactionalPush, config.push_deferrer
   end
 
+  # robin-compat is released apart from robin, for the robin versions its
+  # gemspec names: the robin running is one of them.
+  def test_runs_on_a_robin_it_allows
+    requirement = Gem::Requirement.new(*Robin::Compat::ROBIN_REQUIREMENT)
+
+    assert_operator requirement, :satisfied_by?, Gem::Version.new(Robin::VERSION)
+    assert_equal requirement, Gem::Specification.load(File.expand_path("../robin-compat.gemspec", __dir__)).dependencies.find { |d| d.name == "robin" }.requirement
+  end
+
   # Bundler.require loads robin-compat.rb, as it loaded sidekiq-pro and
   # sidekiq-ent when they were in the Gemfile: their interfaces are there
   # without requiring them.

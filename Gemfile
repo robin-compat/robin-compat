@@ -4,8 +4,14 @@ source "https://rubygems.org"
 
 gemspec
 
-# Use the released Robin by default; opt into a checkout for development.
-gem "robin", path: ENV["ROBIN_PATH"] if ENV["ROBIN_PATH"]
+# The newest released robin robin-compat allows, unless ROBIN_PATH names a
+# checkout (for development) or ROBIN_VERSION a release (CI's lowest-robin
+# job sets it).
+if ENV["ROBIN_PATH"]
+  gem "robin", path: ENV["ROBIN_PATH"]
+elsif ENV["ROBIN_VERSION"]
+  gem "robin", ENV["ROBIN_VERSION"]
+end
 
 gem "rake"
 gem "minitest"

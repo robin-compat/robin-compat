@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- robin-compat is versioned on its own, no longer in step with robin. It
+  depends on robin from 0.1.2 up to (not including) 0.2, so a release of
+  either no longer needs one of the other.
 - The README warns about gems that depend on the sidekiq gem, which bring
   the real Sidekiq back into the bundle.
 
