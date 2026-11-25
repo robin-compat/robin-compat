@@ -25,6 +25,8 @@ module Sidekiq
 
         def get_sidekiq_options = Job.default_options.merge(robin_options)
 
+        def sidekiq_options_hash = get_sidekiq_options
+
         # The block gets (retry count, exception, job): the count is 0 the
         # first time the job fails.
         def sidekiq_retry_in(&block)

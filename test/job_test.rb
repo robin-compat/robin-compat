@@ -37,6 +37,7 @@ Robin.singleton_class.prepend(JobTestClock)
 class JobTest < RobinCompatTest
   cover "Sidekiq::Job*"
   cover "Sidekiq::JobRetry*"
+  cover "Sidekiq::Job::InstanceMethods*"
 
   include JobTestJobs
 
@@ -67,6 +68,14 @@ class JobTest < RobinCompatTest
 
     assert_equal({"a" => 1}, klass.get_sidekiq_options.fetch("nested"))
     assert_false klass.get_sidekiq_options.fetch("dead")
+  end
+
+  # Sidekiq keeps a class's options in the sidekiq_options_hash class
+  # attribute, which jobs read too (apps' tests check options with it).
+  def test_sidekiq_options_hash_is_the_classs_options
+    assert_equal({"retry" => 2, "queue" => "critical", "tags" => ["t"]}, ChildJob.sidekiq_options_hash)
+    assert_equal({"retry" => true, "queue" => "default"}, OldStyle.sidekiq_options_hash)
+    assert_equal ChildJob.get_sidekiq_options, ChildJob.new.sidekiq_options_hash
   end
 
   def test_retry_for_keeps_the_retry_count

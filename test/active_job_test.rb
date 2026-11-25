@@ -136,6 +136,7 @@ class ActiveJobTest < RobinCompatTest
     assert_equal({"retry" => 3, "tags" => ["greetings"]}, GreetJob.robin_options)
     assert_equal({"retry" => 3, "queue" => "default", "tags" => ["greetings"]}, GreetJob.get_sidekiq_options)
     assert_equal({"retry" => true, "queue" => "default"}, PlainJob.get_sidekiq_options)
+    assert_equal({"retry" => 3, "queue" => "default", "tags" => ["greetings"]}, GreetJob.sidekiq_options_hash)
     assert_equal({"retry" => false, "backtrace" => 5, "lock" => {"ttl" => 1}}, Class.new(PlainJob) { sidekiq_options retry: false, backtrace: 5, lock: {ttl: 1} }.robin_options)
   end
 

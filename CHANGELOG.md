@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Job classes, their jobs and Active Job classes have
+  `sidekiq_options_hash`, the class's options, which Sidekiq keeps in
+  that class attribute. Apps' tests that checked an option with it
+  failed with "undefined method".
 - `Sidekiq::Config.new` takes no arguments, or Sidekiq's options, as
   Sidekiq's does, for a configuration of its own with Sidekiq's
   defaults. It required a Robin::Config, so apps' tests that built one

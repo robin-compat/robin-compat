@@ -53,7 +53,9 @@ module Sidekiq
 
     # Methods a job instance has that take precedence over Robin::Job's
     # (sidekiq/batch adds +batch+ and +valid_within_batch?+).
-    module InstanceMethods; end
+    module InstanceMethods
+      def sidekiq_options_hash = self.class.sidekiq_options_hash
+    end
 
     module ClassMethods
       def sidekiq_options(opts = nil)
@@ -70,6 +72,10 @@ module Sidekiq
         pool = sidekiq_pool
         pool ? robin_options.merge({"pool" => pool}) : robin_options
       end
+
+      # The class's options, which Sidekiq keeps in this class attribute
+      # (apps' tests read it).
+      def sidekiq_options_hash = get_sidekiq_options
 
       # A class without options of its own (or inherited) has
       # Sidekiq.default_job_options rather than Robin's defaults.
