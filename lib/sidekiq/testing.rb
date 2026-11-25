@@ -140,22 +140,26 @@ module Sidekiq
     module TestingMethods
       def queue = get_sidekiq_options.fetch("queue")
 
-      def jobs = Queues.jobs_by_class[to_s]
+      # The class name its jobs are pushed with, which fake mode keeps
+      # them by.
+      def jobs_key = to_s
 
-      def clear = Queues.clear_for(queue, to_s)
+      def jobs = Queues.jobs_by_class[jobs_key]
+
+      def clear = Queues.clear_for(queue, jobs_key)
 
       # Runs the jobs of this class (including any they push), in the
       # order they were pushed.
       def drain
         while (job = jobs.first)
-          Queues.delete_for(job["jid"], job["queue"], to_s)
+          Queues.delete_for(job["jid"], job["queue"], jobs_key)
           process_job(job)
         end
       end
 
       def perform_one
         job = jobs.first or raise(EmptyQueueError, "perform_one called with empty job queue")
-        Queues.delete_for(job["jid"], job["queue"], to_s)
+        Queues.delete_for(job["jid"], job["queue"], jobs_key)
         process_job(job)
       end
 

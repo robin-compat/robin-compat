@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Sidekiq::Testing` runs Active Job jobs: inline mode runs them as
+  they're pushed, and in fake mode `Sidekiq::ActiveJob::Wrapper.jobs`
+  (or Sidekiq 7's `JobWrapper`) lists them, and `drain`, `perform_one`
+  and `Sidekiq::Job.drain_all` run them. Robin's wrapper, which they run
+  on, is a Sidekiq job now, as Sidekiq's is. Inline mode failed with
+  "undefined method 'process_job' for class Robin::ActiveJob::Wrapper",
+  which made every `deliver_later` in an inline block fail.
 - `Sidekiq::Cron::Support` is there, with sidekiq-cron's
   `safe_constantize` and `load_yaml`, and cron jobs and the schedule
   loader go through it as sidekiq-cron's do. Chatwoot's initializer

@@ -11,11 +11,20 @@ require "rbconfig"
 previous = Robin::Client.interceptor
 require "sidekiq/testing"
 Robin::Client.interceptor = previous
+require "sidekiq/active_job"
+ActiveJob::Base.logger = Logger.new(nil)
 SIDEKIQ_TESTING_INTERCEPTOR = ->(payloads) { Sidekiq::Testing.intercept(payloads) }
 
 module TestingTestJobs
   RAN = []
   CALLS = []
+
+  class MailJob < ActiveJob::Base
+    self.queue_adapter = :sidekiq
+    queue_as :mail
+
+    def perform(name) = RAN << [:mail, name]
+  end
 
   class HardJob
     include Sidekiq::Job
@@ -63,6 +72,7 @@ class TestingTest < RobinCompatTest
   cover "Sidekiq::Job.jobs"
   cover "Sidekiq::Job.clear_all"
   cover "Sidekiq::Job.drain_all"
+  cover "Sidekiq::ActiveJob::WrapperTesting*"
 
   include TestingTestJobs
 
@@ -418,6 +428,51 @@ class TestingTest < RobinCompatTest
     assert_empty RAN
     assert_equal 1, queued("critical")
     assert_nil Sidekiq::Testing.intercept([{"class" => HardJob.name}])
+  end
+
+  # Active Job jobs run on the wrapper, a Sidekiq job as Sidekiq's is, so
+  # the testing modes run them too.
+  def test_inline_mode_runs_active_job_jobs
+    Sidekiq::Testing.inline! { MailJob.perform_later("a") }
+
+    assert_equal [[:mail, "a"]], RAN
+    assert_empty Sidekiq::ActiveJob::Wrapper.jobs
+    assert_empty redis("KEYS", key("*"))
+  end
+
+  def test_fake_mode_keeps_active_job_jobs_on_the_wrapper
+    Sidekiq::Testing.fake!
+    MailJob.perform_later("a")
+    MailJob.perform_later("b")
+    jobs = Sidekiq::ActiveJob::Wrapper.jobs
+
+    assert_same Sidekiq::Queues.jobs_by_class.fetch("Sidekiq::ActiveJob::Wrapper"), jobs
+    assert_equal [[MailJob.name, "mail"]] * 2, jobs.map { |job| job.values_at("wrapped", "queue") }
+    Sidekiq::ActiveJob::Wrapper.perform_one
+
+    assert_equal [[:mail, "a"]], RAN
+    Sidekiq::ActiveJob::Wrapper.drain
+
+    assert_equal [[:mail, "a"], [:mail, "b"]], RAN
+    assert_empty jobs
+    MailJob.perform_later("c")
+    Sidekiq::ActiveJob::Wrapper.clear
+
+    assert_empty jobs
+  end
+
+  # Apps written for Sidekiq 7 push Active Job jobs naming its wrapper.
+  def test_sidekiq_7_apps_active_job_jobs_drain_under_its_wrappers_name
+    Sidekiq.compatible_with = "7.2"
+    Sidekiq::Testing.fake!
+    MailJob.perform_later("a")
+
+    assert_equal 1, ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper.jobs.size
+    assert_equal ["ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper"], Sidekiq::Queues.jobs_by_class.keys
+    Sidekiq::Job.drain_all
+
+    assert_equal [[:mail, "a"]], RAN
+    assert_empty Sidekiq::Job.jobs
   end
 
   def test_intercept_returns_the_payloads_it_took

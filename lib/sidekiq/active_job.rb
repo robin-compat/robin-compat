@@ -6,8 +6,18 @@ require "robin/active_job"
 module Sidekiq
   module ActiveJob
     # Active Job jobs Sidekiq pushed name this class: they run on Robin's
-    # wrapper.
+    # wrapper. Like Sidekiq's, it's a Sidekiq job, so Sidekiq::Testing's
+    # fake and inline modes run Active Job jobs too.
     Wrapper = Robin::ActiveJob::Wrapper
+    Wrapper.include(Sidekiq::Job)
+
+    # The wrapper's own testing methods.
+    module WrapperTesting
+      # Fake mode keeps its jobs under the name they're pushed with,
+      # Sidekiq's wrapper's, which isn't the class's own.
+      def jobs_key = ::ActiveJob::QueueAdapters::SidekiqAdapter.job_wrapper
+    end
+    Wrapper.extend(WrapperTesting)
   end
 
   module Job
@@ -69,6 +79,10 @@ module ActiveJob
       # The wrapper class name Sidekiq used before it named its own.
       JobWrapper = Robin::ActiveJob::Wrapper
 
+      # The wrapper class jobs name: Sidekiq 8's, or for apps written for
+      # Sidekiq 7, the one Sidekiq 7 knows (which Sidekiq 8 knows too).
+      def self.job_wrapper = Sidekiq.compatible_before?("8.0") ? JOB_WRAPPER_7 : JOB_WRAPPER
+
       # Jobs pushed inside a transaction are sent after it commits.
       def enqueue_after_transaction_commit? = true
 
@@ -76,9 +90,8 @@ module ActiveJob
 
       # Jobs name Sidekiq's wrapper class, as Sidekiq's adapter pushes
       # them, so Sidekiq processes can run them too (Robin's run them on
-      # its own wrapper, an alias): Sidekiq 8's, or for apps written for
-      # Sidekiq 7, the one Sidekiq 7 knows (which Sidekiq 8 knows too).
-      def payload(job, timestamp) = super.merge({"class" => Sidekiq.compatible_before?("8.0") ? JOB_WRAPPER_7 : JOB_WRAPPER})
+      # its own wrapper, an alias).
+      def payload(job, timestamp) = super.merge({"class" => SidekiqAdapter.job_wrapper})
 
       JOB_WRAPPER = "Sidekiq::ActiveJob::Wrapper"
       JOB_WRAPPER_7 = "ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper"
