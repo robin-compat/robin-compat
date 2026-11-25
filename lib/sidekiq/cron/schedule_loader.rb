@@ -25,8 +25,7 @@ module Sidekiq
       def schedule
         @schedule ||= begin
           require "erb"
-          require "yaml"
-          YAML.safe_load(ERB.new(File.read(schedule_file_name)).result, permitted_classes: [Symbol], aliases: true)
+          Support.load_yaml(ERB.new(File.read(schedule_file_name)).result)
         end
       end
 

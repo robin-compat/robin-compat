@@ -616,6 +616,29 @@ class SidekiqCronTest < RobinCompatTest
     assert_equal "3", missing.message.fetch("retry"), "the message isn't changed"
   end
 
+  # sidekiq-cron's helpers, which apps call and stub.
+  def test_support_finds_constants_and_reads_yaml_as_sidekiq_cron_does
+    support = Sidekiq::Cron::Support
+
+    assert_same Report, support.safe_constantize(Report.name)
+    assert_nil support.safe_constantize("Missing")
+    assert_nil support.safe_constantize("not a constant")
+    assert_equal ["yaml"], recording_requires(support) { assert_equal({"a" => {"queue" => :low}, "b" => {"queue" => :low}}, support.load_yaml("a: &x\n  queue: :low\nb: *x\n")) }
+    assert_raises(Psych::DisallowedClass) { support.load_yaml("--- !ruby/object:Object {}\n") }
+  end
+
+  # Jobs find their class with Support.safe_constantize, as sidekiq-cron's
+  # do, so a test that stubs it sees a class this process can't load.
+  def test_jobs_find_their_class_with_support
+    stubbing(Sidekiq::Cron::Support, :safe_constantize, nil) do
+      job.enqueue!
+      job("name" => "wrapped", "active_job" => "1").enqueue!
+    end
+
+    assert_equal [["ActiveJob::QueueAdapters::SidekiqAdapter::JobWrapper", Report.name], [Report.name, nil]],
+      queued("default").map { |j| j.values_at("class", "wrapped") }
+  end
+
   def test_enqueue_pushes_an_active_jobs_wrapper_for_a_class_it_cant_load
     missing = job("class" => "MissingJob", "active_job" => "1", "args" => [1], "description" => "d")
     missing.enqueue!
@@ -846,7 +869,7 @@ class SidekiqCronTest < RobinCompatTest
     in_app("config/schedule.yaml" => "- name: listed\n  cron: \"@daily\"\n  class: #{Report.name}\n") do
       loader = Sidekiq::Cron::ScheduleLoader.new
 
-      assert_equal %w[erb yaml], recording_requires(loader) { assert_equal({}, loader.load_schedule) }
+      assert_equal %w[erb], recording_requires(loader) { assert_equal({}, loader.load_schedule) }
       assert_equal [%w[listed schedule]], Sidekiq::Cron::Job.all("*").select { |j| j.name == "listed" }.map { |j| [j.name, j.source] }
     end
   end
@@ -947,6 +970,7 @@ class SidekiqCronTest < RobinCompatTest
   def test_its_files_load_it
     assert_true load(File.expand_path("../lib/sidekiq-cron.rb", __dir__))
     assert_true load(File.expand_path("../lib/sidekiq/cron/web.rb", __dir__))
+    assert_false require("sidekiq/cron/support"), "sidekiq/cron loads it"
     assert_includes @log.string, "Robin's dashboard doesn't show sidekiq-cron jobs; Sidekiq::Cron::Job.all lists them"
   end
 end

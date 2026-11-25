@@ -141,6 +141,7 @@ module Sidekiq
   end
 end
 
+require "sidekiq/cron/support"
 require "sidekiq/cron/job"
 require "sidekiq/cron/schedule_loader"
 require "sidekiq/cron/poller"

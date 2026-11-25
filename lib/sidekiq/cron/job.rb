@@ -466,11 +466,7 @@ module Sidekiq
         end
       end
 
-      def constant
-        Object.const_get(@klass.to_s)
-      rescue NameError
-        nil
-      end
+      def constant = Support.safe_constantize(@klass.to_s)
 
       # "retry" as stored ("true", "5"...) as a job takes it.
       def retry_option(value)

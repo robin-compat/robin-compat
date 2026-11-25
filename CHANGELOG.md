@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Sidekiq::Cron::Support` is there, with sidekiq-cron's
+  `safe_constantize` and `load_yaml`, and cron jobs and the schedule
+  loader go through it as sidekiq-cron's do. Chatwoot's initializer
+  parses its schedule with `load_yaml`, so its worker failed to boot
+  with "uninitialized constant Sidekiq::Cron::Support".
 - Job classes, their jobs and Active Job classes have
   `sidekiq_options_hash`, the class's options, which Sidekiq keeps in
   that class attribute. Apps' tests that checked an option with it
