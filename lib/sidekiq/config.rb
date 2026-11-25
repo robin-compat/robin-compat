@@ -22,9 +22,19 @@ module Sidekiq
     REDIS_RENAMES = {size: :pool_size, network_timeout: :timeout}.freeze
     REDIS_IGNORED = %i[driver reconnect_attempts role protocol id].freeze
 
-    def initialize(robin)
+    # Wraps +robin+, a Robin::Config. Given options instead (or nothing),
+    # as Sidekiq::Config.new(options = {}) takes them, it's a new
+    # configuration with Sidekiq's defaults and those settings
+    # (config[:name] keys).
+    def initialize(robin = {})
+      options = {}
+      unless Robin::Config === robin
+        options = robin
+        robin = Sidekiq.defaults!(Robin::Config.new)
+      end
       super
       @extra = {}
+      merge!(options)
     end
 
     def robin = __getobj__

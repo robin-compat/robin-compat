@@ -16,6 +16,25 @@ class ConfigTest < RobinCompatTest
     assert_equal sidekiq.to_s, sidekiq.inspect
   end
 
+  # As Sidekiq::Config.new(options = {}): a configuration of its own, with
+  # Sidekiq's defaults and the options given (apps build them in tests).
+  def test_a_new_configuration_has_sidekiqs_defaults_and_the_options_given
+    fresh = Sidekiq::Config.new
+
+    refute_same Robin.config, fresh.robin
+    assert_equal ["", "robin:", 25, Sidekiq::Job::RETRY_BACKOFF], [fresh.key_prefix, fresh.internal_key_prefix, fresh[:max_retries], fresh.retry_backoff]
+    assert_equal [5, ["default"]], [fresh.concurrency, fresh.queues]
+
+    given = Sidekiq::Config.new(concurrency: 3, max_retries: 4, custom: "x")
+
+    assert_equal [3, 4, "x"], [given.concurrency, given[:max_retries], given[:custom]]
+    ai = given.capsule("ai") { |capsule| capsule.queues = %w[ai] }
+    ai.concurrency = 1
+
+    assert_equal({"default" => 3, "ai" => 1}, given.capsules.transform_values(&:concurrency))
+    refute_same Sidekiq.default_configuration.robin, given.robin
+  end
+
   def test_hash_access
     sidekiq[:max_retries] = 7
     sidekiq["dead_timeout_in_seconds"] = 60

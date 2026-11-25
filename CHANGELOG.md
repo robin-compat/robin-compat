@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Sidekiq::Config.new` takes no arguments, or Sidekiq's options, as
+  Sidekiq's does, for a configuration of its own with Sidekiq's
+  defaults. It required a Robin::Config, so apps' tests that built one
+  failed with "wrong number of arguments".
 - `require "sidekiq-scheduler/web"` loads `Sidekiq::Web`, as
   sidekiq-scheduler's does. Routes that required only it (Mastodon's do)
   failed to mount the dashboard with "uninitialized constant
