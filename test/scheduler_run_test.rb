@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "scheduler_test"
+require "open3"
+require "rbconfig"
 require "sidekiq/active_job"
 require "sidekiq/api"
 require "sidekiq/cli"
@@ -699,5 +701,15 @@ class SidekiqSchedulerRunTest < RobinCompatTest
     load File.expand_path("../lib/sidekiq-scheduler/web.rb", __dir__)
 
     assert_includes @log.string, "sidekiq-scheduler/web: Robin's dashboard doesn't show sidekiq-scheduler jobs"
+  end
+
+  # sidekiq-scheduler's web file loads Sidekiq::Web, so routes that
+  # require only it (as Mastodon's do) can mount the dashboard.
+  def test_its_web_file_loads_sidekiq_web
+    code = 'require "sidekiq-scheduler/web"; print defined?(Sidekiq::Web).inspect'
+    out, status = Open3.capture2e(RbConfig.ruby, "-rbundler/setup", "-I", File.expand_path("../lib", __dir__), "-e", code)
+
+    assert_predicate status, :success?, out
+    assert_equal '"constant"', out.lines.last
   end
 end

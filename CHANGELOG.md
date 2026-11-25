@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `require "sidekiq-scheduler/web"` loads `Sidekiq::Web`, as
+  sidekiq-scheduler's does. Routes that required only it (Mastodon's do)
+  failed to mount the dashboard with "uninitialized constant
+  Sidekiq::Web".
 - `bundle exec sidekiq` boots a Rails app with Active Job's `:sidekiq`
   adapter. It loaded Rails's own adapter instead, which failed with
   "sidekiq is not part of the bundle".
