@@ -26,6 +26,10 @@ class AllocationsTest < RobinCompatTest
 
   def assert_budget(native:, ruby:, &block)
     3.times(&block)
+    # Robin reads random bytes for a batch of job ids at a time, per
+    # thread: start the batch over, so the jobs measured never refill it
+    # (when they would depends on how many ids earlier tests took).
+    Thread.current[:robin_jids]&.offset = 0
     limit = NATIVE ? native : ruby
     return assert_allocations(count: 0..limit, &block) unless ENV["ROBIN_MEASURE_ALLOCATIONS"]
 
